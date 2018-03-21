@@ -42,7 +42,7 @@ public interface CompositeAutoClosable extends AutoCloseable {
      * @return a new {@link CompositeAutoClosable}.
      */
     static CompositeAutoClosable create() {
-        return new AbstractCompositeAutoClosable();
+        return new CompositeAutoClosableImpl();
     }
 
     /**

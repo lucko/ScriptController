@@ -79,6 +79,13 @@ class ScriptImpl implements Script, Runnable {
      */
     private static final Function<Path, String> LOAD_FUNCTION = path -> "__load(\"" + path.toString().replace("\\", "/") + "\");";
 
+    // functions to import packages / classes
+    private static final Function<String, String> IMPORT_PACKAGE = pkg -> "importPackage(\"" + pkg + "\");";
+    private static final Function<String, String> IMPORT_TYPE = type -> {
+        String name = type.substring(type.lastIndexOf('.') + 1);
+        return "var " + name + " = Java.type(\"" + type + "\")";
+    };
+
     private final ScriptLoaderImpl loader;
 
     /** The name of this script */
@@ -131,6 +138,11 @@ class ScriptImpl implements Script, Runnable {
     }
 
     @Override
+    public CompositeAutoClosable getClosables() {
+        return this.compositeAutoClosable;
+    }
+
+    @Override
     public void run() {
         try {
             Path loaderDirectory = this.loader.getEnvironment().getDirectory().normalize();
@@ -141,8 +153,7 @@ class ScriptImpl implements Script, Runnable {
 
             // provide an export for various script attributes
             bindings.put("loader", this.delegateLoader)
-                    .put("registry", this.compositeAutoClosable)
-                    .put("bind", (Consumer<AutoCloseable>) this.compositeAutoClosable::bind)
+                    .put("closableRegistry", this.compositeAutoClosable)
                     .put("exports", this.loader.getEnvironment().getExportRegistry())
                     .put("logger", this.logger)
                     .put("cwd", this.path.normalize().toString().replace("\\", "/")) // the path of the script file (current working directory)
@@ -152,7 +163,7 @@ class ScriptImpl implements Script, Runnable {
             // accumulate global bindings
             Set<BindingsSupplier> systemBindings = this.loader.getEnvironment().getSettings().getBindings();
             for (BindingsSupplier supplier : systemBindings) {
-                supplier.accumulateTo(bindings);
+                supplier.supplyBindings(this, bindings);
             }
 
             // create a new script context, and attach our bindings
@@ -161,6 +172,14 @@ class ScriptImpl implements Script, Runnable {
 
             // evaluate the header
             scriptEngine.eval(GLOBAL_SCRIPT_HEADER, context);
+
+            // apply default package/type imports
+            for (String packageName : this.loader.getEnvironment().getSettings().getPackageImports()) {
+                scriptEngine.eval(IMPORT_PACKAGE.apply(packageName), context);
+            }
+            for (String className : this.loader.getEnvironment().getSettings().getTypeImports()) {
+                scriptEngine.eval(IMPORT_TYPE.apply(className), context);
+            }
 
             // resolve the load path, relative to the loader directory.
             Path loadPath = loaderDirectory.resolve(this.path);

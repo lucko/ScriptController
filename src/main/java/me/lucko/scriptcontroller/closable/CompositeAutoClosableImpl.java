@@ -35,12 +35,8 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  * A simple implementation of {@link CompositeAutoClosable} using a
  * {@link ConcurrentLinkedDeque}.
  */
-public class AbstractCompositeAutoClosable implements CompositeAutoClosable {
+class CompositeAutoClosableImpl implements CompositeAutoClosable {
     private final Deque<AutoCloseable> closeables = new ConcurrentLinkedDeque<>();
-
-    protected AbstractCompositeAutoClosable() {
-
-    }
 
     @Override
     public CompositeAutoClosable bind(AutoCloseable autoCloseable) {

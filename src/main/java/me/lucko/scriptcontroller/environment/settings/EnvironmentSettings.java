@@ -30,6 +30,7 @@ import me.lucko.scriptcontroller.environment.ScriptEnvironment;
 import me.lucko.scriptcontroller.environment.loader.ScriptLoadingExecutor;
 import me.lucko.scriptcontroller.internal.ScriptControllerImpl;
 
+import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -105,6 +106,38 @@ public interface EnvironmentSettings {
          * @return this builder
          */
         Builder withBindings(BindingsSupplier supplier);
+
+        /**
+         * Marks that a {@link Package} should be imported by default.
+         *
+         * @param packageName the name of the package - see {@link Package#getName()}.
+         * @return this builder
+         */
+        Builder withDefaultPackageImport(String packageName);
+
+        /**
+         * Marks that {@link Package}s should be imported by default.
+         *
+         * @param packageNames the package names - see {@link Package#getName()}.
+         * @return this builder
+         */
+        Builder withDefaultPackageImports(Collection<String> packageNames);
+
+        /**
+         * Marks that a {@link Class} should be imported by default.
+         *
+         * @param type the name of the class - see {@link Class#getName()}
+         * @return this builder
+         */
+        Builder withDefaultTypeImport(String type);
+
+        /**
+         * Marks that {@link Class}es should be imported by default.
+         *
+         * @param types class names - see {@link Class#getName()}
+         * @return this builder
+         */
+        Builder withDefaultTypeImports(Collection<String> types);
 
         /**
          * Define how often the script loader should poll scripts for updates

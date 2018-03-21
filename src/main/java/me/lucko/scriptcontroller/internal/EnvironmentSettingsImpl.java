@@ -29,8 +29,10 @@ import me.lucko.scriptcontroller.bindings.BindingsSupplier;
 import me.lucko.scriptcontroller.environment.loader.ScriptLoadingExecutor;
 import me.lucko.scriptcontroller.environment.settings.EnvironmentSettings;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -57,6 +59,8 @@ class EnvironmentSettingsImpl implements EnvironmentSettings {
     private final ScriptLoadingExecutor loadExecutor;
     private final Executor runExecutor;
     private final Set<BindingsSupplier> bindings;
+    private final Set<String> packageImports;
+    private final Set<String> typeImports;
     private final Duration pollRate;
     private final String initScript;
 
@@ -65,6 +69,8 @@ class EnvironmentSettingsImpl implements EnvironmentSettings {
         this.loadExecutor = builder.loadExecutor;
         this.runExecutor = builder.runExecutor;
         this.bindings = Collections.unmodifiableSet(new HashSet<>(builder.bindings));
+        this.packageImports = Collections.unmodifiableSet(new LinkedHashSet<>(builder.packageImports));
+        this.typeImports = Collections.unmodifiableSet(new LinkedHashSet<>(builder.typeImports));
         this.initScript = builder.initScript;
     }
 
@@ -86,6 +92,14 @@ class EnvironmentSettingsImpl implements EnvironmentSettings {
         return this.bindings;
     }
 
+    public Set<String> getPackageImports() {
+        return this.packageImports;
+    }
+
+    public Set<String> getTypeImports() {
+        return this.typeImports;
+    }
+
     public Duration getPollRate() {
         if (this.pollRate == null) {
             return DEFAULT_POLL_RATE;
@@ -104,6 +118,8 @@ class EnvironmentSettingsImpl implements EnvironmentSettings {
         private ScriptLoadingExecutor loadExecutor = null;
         private Executor runExecutor = null;
         private final Set<BindingsSupplier> bindings = new HashSet<>();
+        private final Set<String> packageImports = new LinkedHashSet<>();
+        private final Set<String> typeImports = new LinkedHashSet<>();
         private Duration pollRate = null;
         private String initScript = null;
 
@@ -119,6 +135,8 @@ class EnvironmentSettingsImpl implements EnvironmentSettings {
                 this.runExecutor = that.runExecutor;
             }
             this.bindings.addAll(that.bindings);
+            this.packageImports.addAll(that.packageImports);
+            this.typeImports.addAll(that.typeImports);
             if (that.pollRate != null) {
                 this.pollRate = that.pollRate;
             }
@@ -141,6 +159,30 @@ class EnvironmentSettingsImpl implements EnvironmentSettings {
         @Override
         public Builder withBindings(BindingsSupplier supplier) {
             this.bindings.add(Objects.requireNonNull(supplier, "supplier"));
+            return this;
+        }
+
+        @Override
+        public Builder withDefaultPackageImport(String packageName) {
+            this.packageImports.add(packageName);
+            return this;
+        }
+
+        @Override
+        public EnvironmentSettings.Builder withDefaultPackageImports(Collection<String> packageNames) {
+            this.packageImports.addAll(packageNames);
+            return this;
+        }
+
+        @Override
+        public Builder withDefaultTypeImport(String type) {
+            this.typeImports.add(type);
+            return this;
+        }
+
+        @Override
+        public EnvironmentSettings.Builder withDefaultTypeImports(Collection<String> types) {
+            this.typeImports.addAll(types);
             return this;
         }
 

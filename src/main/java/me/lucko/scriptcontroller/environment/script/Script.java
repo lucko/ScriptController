@@ -25,6 +25,7 @@
 
 package me.lucko.scriptcontroller.environment.script;
 
+import me.lucko.scriptcontroller.closable.CompositeAutoClosable;
 import me.lucko.scriptcontroller.logging.ScriptLogger;
 
 import java.nio.file.Path;
@@ -58,6 +59,13 @@ public interface Script extends AutoCloseable {
      * @return the logger
      */
     ScriptLogger getLogger();
+
+    /**
+     * Gets the scripts composite closable registry.
+     *
+     * @return the scripts closable registry
+     */
+    CompositeAutoClosable getClosables();
 
     /**
      * Gets the other scripts depended on by this script.

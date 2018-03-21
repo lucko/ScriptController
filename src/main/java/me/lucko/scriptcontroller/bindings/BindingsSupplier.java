@@ -25,20 +25,35 @@
 
 package me.lucko.scriptcontroller.bindings;
 
+import me.lucko.scriptcontroller.environment.script.Script;
+
 import java.util.Map;
 
 /**
- * Supplies bindings to an accumulator
+ * Supplies a set of bindings for scripts to use at runtime.
  */
 @FunctionalInterface
 public interface BindingsSupplier {
 
+    /**
+     * Returns a {@link BindingsSupplier} that encapsulates a single binding.
+     *
+     * @param name the name of the binding
+     * @param value the corresponding value
+     * @return the resultant bindings supplier
+     */
     static BindingsSupplier singleBinding(String name, Object value) {
-        return accumulator -> accumulator.put(name, value);
+        return (script, accumulator) -> accumulator.put(name, value);
     }
 
+    /**
+     * Returns a {@link BindingsSupplier} that encapsulates a map of objects.
+     *
+     * @param map the map of bindings
+     * @return the resultant bindings supplier
+     */
     static BindingsSupplier ofMap(Map<String, Object> map) {
-        return accumulator -> {
+        return (script, accumulator) -> {
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 accumulator.put(entry.getKey(), entry.getValue());
             }
@@ -46,10 +61,11 @@ public interface BindingsSupplier {
     }
 
     /**
-     * Adds this suppliers bindings to the accumulator
+     * Supplies this suppliers bindings for the given script.
      *
+     * @param script the script the bindings are for
      * @param accumulator the accumulator
      */
-    void accumulateTo(BindingsBuilder accumulator);
+    void supplyBindings(Script script, BindingsBuilder accumulator);
 
 }
