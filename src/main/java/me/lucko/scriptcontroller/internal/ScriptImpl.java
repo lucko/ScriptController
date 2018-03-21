@@ -81,17 +81,22 @@ class ScriptImpl implements Script, Runnable {
 
     private final ScriptLoaderImpl loader;
 
-    // the name of this script
+    /** The name of this script */
     private final String name;
-    // the associated script file
+
+    /** The associated script file */
     private final Path path;
-    // the loader instance handling this script
+
+    /** The loader instance handling this script */
     private final ScriptLoader delegateLoader;
-    // the scripts logger
+
+    /** The scripts logger */
     private final ScriptLogger logger;
-    // the terminable registry used by this script
+
+    /** The terminable registry used by this script */
     private final CompositeAutoClosable compositeAutoClosable = CompositeAutoClosable.create();
-    // the scripts dependencies
+
+    /** The scripts dependencies */
     private final Set<Path> depends = new HashSet<>();
 
     public ScriptImpl(ScriptLoaderImpl loader, Path path) {
@@ -145,7 +150,7 @@ class ScriptImpl implements Script, Runnable {
                     .put("depend", (Consumer<String>) this::depend); // function to depend on another script
 
             // accumulate global bindings
-            Set<BindingsSupplier> systemBindings = this.loader.getEnvironment().getController().getBindings();
+            Set<BindingsSupplier> systemBindings = this.loader.getEnvironment().getSettings().getBindings();
             for (BindingsSupplier supplier : systemBindings) {
                 supplier.accumulateTo(bindings);
             }

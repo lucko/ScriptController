@@ -38,46 +38,35 @@ import java.nio.file.Path;
 import javax.script.ScriptEngine;
 
 class ScriptEnvironmentImpl implements ScriptEnvironment {
-    private static final String INIT_SCRIPT = "init.js";
 
-    /**
-     * The script controller
-     */
+    /** The script controller */
     private final ScriptControllerImpl controller;
 
-    /**
-     * The root directory of this environment
-     */
+    /** The environment settings */
+    private final EnvironmentSettingsImpl settings;
+
+    /** The root directory of this environment */
     private final Path directory;
 
-    /**
-     * The script registry for scripts loaded in this environment
-     */
+    /** The script registry for scripts loaded in this environment */
     private final ScriptRegistry scriptRegistry;
 
-    /**
-     * The script export registry
-     */
+    /** The script export registry */
     private final ExportRegistry exportRegistry;
 
-    /**
-     * The script engine
-     */
+    /** The script engine */
     private final ScriptEngine scriptEngine;
 
-    /**
-     * The script loader operating within this environment
-     */
+    /** The script loader operating within this environment */
     private final SystemScriptLoader loader;
 
-    /**
-     * An autoclosable which represents the repeating load task
-     */
+    /** An autoclosable which represents the repeating load task */
     private final AutoCloseable loaderPollingTask;
 
-    public ScriptEnvironmentImpl(ScriptControllerImpl controller, Path directory) {
+    public ScriptEnvironmentImpl(ScriptControllerImpl controller, Path directory, EnvironmentSettingsImpl settings) {
         this.controller = controller;
         this.directory = directory;
+        this.settings = settings;
 
         this.scriptRegistry = ScriptRegistry.create();
         this.exportRegistry = ExportRegistry.create();
@@ -87,16 +76,22 @@ class ScriptEnvironmentImpl implements ScriptEnvironment {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        this.loader.watch(INIT_SCRIPT);
+        this.loader.watch(settings.getInitScript());
         this.loader.preload();
 
         // setup a ticking task on the environments loader
-        this.loaderPollingTask = controller.schedulePollingTask(this.loader);
+        Duration rate = settings.getPollRate();
+        this.loaderPollingTask = settings.getLoadExecutor().scheduleAtFixedRate(this.loader, rate.getDuration(), rate.getUnit());
     }
 
     @Override
     public ScriptControllerImpl getController() {
         return this.controller;
+    }
+
+    @Override
+    public EnvironmentSettingsImpl getSettings() {
+        return this.settings;
     }
 
     @Override

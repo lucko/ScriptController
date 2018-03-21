@@ -55,22 +55,22 @@ class ScriptLoaderImpl implements SystemScriptLoader {
             StandardWatchEventKinds.ENTRY_MODIFY
     };
 
-    /**
-     * The environment this loader is operating within
-     */
+    /** The environment this loader is operating within */
     private final ScriptEnvironmentImpl environment;
 
-    // the watch service monitoring the directory
+    /** The watch service monitoring the directory */
     private final WatchService watchService;
 
-    // the watch key for the script directory
+    /** The watch key for the script directory */
     private WatchKey watchKey;
 
-    // the script files currently being monitored by this instance
-    // these paths are relative to the script directory
+    /**
+     * The script files currently being monitored by this instance.
+     * These paths are relative to the script directory
+     */
     private List<Path> files = new ArrayList<>();
 
-    // instance mutex
+    /** The instance mutex */
     private final ReentrantLock lock = new ReentrantLock();
 
     public ScriptLoaderImpl(ScriptEnvironmentImpl environment) throws IOException {
@@ -287,7 +287,7 @@ class ScriptLoaderImpl implements SystemScriptLoader {
         }
 
         // handle init of new scripts & cleanup of old ones
-        Executor runExecutor = this.environment.getController().getRunExecutor();
+        Executor runExecutor = this.environment.getSettings().getRunExecutor();
         runExecutor.execute(() -> {
             for (ScriptImpl script : toRun) {
                 try {

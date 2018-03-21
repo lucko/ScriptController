@@ -25,16 +25,13 @@
 
 package me.lucko.scriptcontroller;
 
-import me.lucko.scriptcontroller.bindings.BindingsSupplier;
 import me.lucko.scriptcontroller.environment.ScriptEnvironment;
-import me.lucko.scriptcontroller.environment.loader.ScriptLoadingExecutor;
+import me.lucko.scriptcontroller.environment.settings.EnvironmentSettings;
 import me.lucko.scriptcontroller.internal.ScriptControllerImpl;
 import me.lucko.scriptcontroller.logging.SystemLogger;
 
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Controls the execution and management of {@link ScriptEnvironment}s.
@@ -47,6 +44,7 @@ public interface ScriptController {
      * @return the builder
      */
     static Builder builder() {
+        //noinspection deprecation
         return ScriptControllerImpl.builder();
     }
 
@@ -61,11 +59,24 @@ public interface ScriptController {
      * Sets up a new {@link ScriptEnvironment} in the given load directory.
      *
      * @param loadDirectory the directory
+     * @param settings the environment settings
      * @return the new environment
      * @throws UnsupportedOperationException if the controller does not support
      * setting up new environments after construction
      */
-    ScriptEnvironment setupNewEnvironment(Path loadDirectory);
+    ScriptEnvironment setupNewEnvironment(Path loadDirectory, EnvironmentSettings settings);
+
+    /**
+     * Sets up a new {@link ScriptEnvironment} in the given load directory.
+     *
+     * @param loadDirectory the directory
+     * @return the new environment
+     * @throws UnsupportedOperationException if the controller does not support
+     * setting up new environments after construction
+     */
+    default ScriptEnvironment setupNewEnvironment(Path loadDirectory) {
+        return setupNewEnvironment(loadDirectory, EnvironmentSettings.defaults());
+    }
 
     /**
      * Shuts down this script controller
@@ -78,23 +89,6 @@ public interface ScriptController {
     interface Builder {
 
         /**
-         * Define the executor service used to setup task to poll scripts for
-         * changes and load new scripts.
-         *
-         * @param executor the executor
-         * @return this builder
-         */
-        Builder loadExecutor(ScriptLoadingExecutor executor);
-
-        /**
-         * Define the executor used to run scripts
-         *
-         * @param executor the executor
-         * @return this builder
-         */
-        Builder runExecutor(Executor executor);
-
-        /**
          * Add a directory to be handled by this script controller
          *
          * @param loadDirectory the directory
@@ -103,29 +97,21 @@ public interface ScriptController {
         Builder withDirectory(Path loadDirectory);
 
         /**
-         * Adds a bindings supplier to the controller
-         *
-         * @param supplier the bindings supplier
-         * @return this builder
-         */
-        Builder withBindings(BindingsSupplier supplier);
-
-        /**
-         * Define how often the script loader should poll scripts for updates
-         *
-         * @param time the time
-         * @param unit the unit
-         * @return this builder
-         */
-        Builder pollRate(long time, TimeUnit unit);
-
-        /**
          * Defines the logger to use.
          *
          * @param logger the logger
          * @return this builder
          */
         Builder logger(SystemLogger logger);
+
+        /**
+         * Defines the default {@link EnvironmentSettings} to use when this
+         * controller creates new {@link ScriptEnvironment}s.
+         *
+         * @param settings the default settings
+         * @return this builder
+         */
+        Builder defaultEnvironmentSettings(EnvironmentSettings settings);
 
         /**
          * Builds a new {@link ScriptController} from the settings defined in

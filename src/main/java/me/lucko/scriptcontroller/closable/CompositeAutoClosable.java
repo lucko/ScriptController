@@ -46,16 +46,6 @@ public interface CompositeAutoClosable extends AutoCloseable {
     }
 
     /**
-     * Creates a new standalone {@link CompositeAutoClosable}, which wrapped
-     * contained closables in {@link java.lang.ref.WeakReference}s.
-     *
-     * @return a new {@link CompositeAutoClosable}.
-     */
-    static CompositeAutoClosable createWeak() {
-        return new AbstractWeakCompositeAutoClosable();
-    }
-
-    /**
      * Binds an {@link AutoCloseable} with this composite closable.
      *
      * <p>Note that implementations do not keep track of duplicate contains

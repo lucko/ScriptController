@@ -28,6 +28,7 @@ package me.lucko.scriptcontroller.environment;
 import me.lucko.scriptcontroller.ScriptController;
 import me.lucko.scriptcontroller.environment.loader.SystemScriptLoader;
 import me.lucko.scriptcontroller.environment.registry.ScriptRegistry;
+import me.lucko.scriptcontroller.environment.settings.EnvironmentSettings;
 import me.lucko.scriptcontroller.exports.ExportRegistry;
 
 import java.nio.file.Path;
@@ -46,6 +47,13 @@ public interface ScriptEnvironment extends AutoCloseable {
      * @return the parent controller
      */
     ScriptController getController();
+
+    /**
+     * Gets the environment settings
+     *
+     * @return the settings
+     */
+    EnvironmentSettings getSettings();
 
     /**
      * Gets the environments root scripts directory

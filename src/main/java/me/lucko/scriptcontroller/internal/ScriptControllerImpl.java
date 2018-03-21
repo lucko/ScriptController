@@ -26,10 +26,9 @@
 package me.lucko.scriptcontroller.internal;
 
 import me.lucko.scriptcontroller.ScriptController;
-import me.lucko.scriptcontroller.bindings.BindingsSupplier;
 import me.lucko.scriptcontroller.closable.CompositeAutoClosable;
 import me.lucko.scriptcontroller.environment.ScriptEnvironment;
-import me.lucko.scriptcontroller.environment.loader.ScriptLoadingExecutor;
+import me.lucko.scriptcontroller.environment.settings.EnvironmentSettings;
 import me.lucko.scriptcontroller.logging.SystemLogger;
 
 import java.nio.file.Path;
@@ -40,15 +39,26 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 public final class ScriptControllerImpl implements ScriptController {
 
+    @Deprecated
+    @SuppressWarnings("DeprecatedIsStillUsed")
     public static ScriptController.Builder builder() {
         return new Builder();
+    }
+
+    @Deprecated
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    public static EnvironmentSettings defaultSettings() {
+        return EnvironmentSettingsImpl.defaults();
+    }
+
+    @Deprecated
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    public static EnvironmentSettings.Builder newSettingsBuilder() {
+        return EnvironmentSettingsImpl.builder();
     }
 
     /**
@@ -57,18 +67,12 @@ public final class ScriptControllerImpl implements ScriptController {
     private final Map<Path, ScriptEnvironment> environments = new HashMap<>();
 
     // various settings and properties defined when the controller was created.
-    private final Interval pollRate;
-    private final ScriptLoadingExecutor loadExecutor;
-    private final Executor runExecutor;
     private final SystemLogger logger;
-    private final Set<BindingsSupplier> bindings;
+    private final EnvironmentSettings defaultSettings;
 
     private ScriptControllerImpl(Builder builder) {
-        this.pollRate = builder.pollRate;
-        this.loadExecutor = builder.loadExecutor.get();
-        this.runExecutor = builder.runExecutor;
         this.logger = builder.logger.get();
-        this.bindings = Collections.unmodifiableSet(new HashSet<>(builder.bindings));
+        this.defaultSettings = builder.settings;
 
         // setup the initial environments
         for (Path path : builder.directories) {
@@ -83,13 +87,16 @@ public final class ScriptControllerImpl implements ScriptController {
     }
 
     @Override
-    public synchronized ScriptEnvironment setupNewEnvironment(Path loadDirectory) {
+    public synchronized ScriptEnvironment setupNewEnvironment(Path loadDirectory, EnvironmentSettings settings) {
         if (this.environments.containsKey(loadDirectory)) {
             throw new IllegalStateException("Already an environment setup at path " + loadDirectory.toString());
         }
 
+        // merge the provided setting with out defaults
+        EnvironmentSettings mergedSettings = this.defaultSettings.toBuilder().mergeSettingsFrom(settings).build();
+
         // create a new environment
-        ScriptEnvironmentImpl environment = new ScriptEnvironmentImpl(this, loadDirectory);
+        ScriptEnvironmentImpl environment = new ScriptEnvironmentImpl(this, loadDirectory, (EnvironmentSettingsImpl) mergedSettings);
         // store a ref to the new environment in the controller
         this.environments.put(loadDirectory, environment);
         return environment;
@@ -102,53 +109,14 @@ public final class ScriptControllerImpl implements ScriptController {
                 .closeAndReportExceptions();
     }
 
-    AutoCloseable schedulePollingTask(Runnable runnable) {
-        // setup a ticking task on the environments loader
-        return this.loadExecutor.scheduleAtFixedRate(runnable, this.pollRate.time, this.pollRate.unit);
-    }
-
-    Executor getRunExecutor() {
-        return this.runExecutor;
-    }
-
     SystemLogger getLogger() {
         return this.logger;
     }
 
-    Set<BindingsSupplier> getBindings() {
-        return this.bindings;
-    }
-
-    private static final class Interval {
-        private final long time;
-        private final TimeUnit unit;
-
-        private Interval(long time, TimeUnit unit) {
-            this.time = time;
-            this.unit = unit;
-        }
-    }
-
     private static final class Builder implements ScriptController.Builder {
-        private Supplier<ScriptLoadingExecutor> loadExecutor = () -> ScriptLoadingExecutor.usingJavaScheduler(Executors.newSingleThreadScheduledExecutor());
-        private Executor runExecutor = Runnable::run;
         private final Set<Path> directories = new HashSet<>();
-        private final Set<BindingsSupplier> bindings = new HashSet<>();
-        private Interval pollRate = new Interval(1, TimeUnit.SECONDS);
         private Supplier<SystemLogger> logger = FallbackSystemLogger.INSTANCE;
-
-        @Override
-        public Builder loadExecutor(ScriptLoadingExecutor executor) {
-            Objects.requireNonNull(executor, "executor");
-            this.loadExecutor = () -> executor;
-            return this;
-        }
-
-        @Override
-        public Builder runExecutor(Executor executor) {
-            this.runExecutor = Objects.requireNonNull(executor, "executor");
-            return this;
-        }
+        private EnvironmentSettings settings = EnvironmentSettings.defaults();
 
         @Override
         public Builder withDirectory(Path loadDirectory) {
@@ -157,21 +125,15 @@ public final class ScriptControllerImpl implements ScriptController {
         }
 
         @Override
-        public Builder withBindings(BindingsSupplier supplier) {
-            this.bindings.add(Objects.requireNonNull(supplier, "supplier"));
-            return this;
-        }
-
-        @Override
-        public Builder pollRate(long time, TimeUnit unit) {
-            this.pollRate = new Interval(time, Objects.requireNonNull(unit, "unit"));
-            return this;
-        }
-
-        @Override
         public Builder logger(SystemLogger logger) {
             Objects.requireNonNull(logger, "logger");
             this.logger = () -> logger;
+            return this;
+        }
+
+        @Override
+        public Builder defaultEnvironmentSettings(EnvironmentSettings settings) {
+            this.settings = Objects.requireNonNull(settings, "settings");
             return this;
         }
 

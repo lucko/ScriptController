@@ -20,6 +20,17 @@
         <maven.test.skip>true</maven.test.skip>
     </properties>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>luck-snapshots</id>
+            <url>https://nexus.lucko.me/repository/maven-snapshots/</url>
+        </snapshotRepository>
+        <repository>
+            <id>luck-releases</id>
+            <url>https://nexus.lucko.me/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>junit</groupId>

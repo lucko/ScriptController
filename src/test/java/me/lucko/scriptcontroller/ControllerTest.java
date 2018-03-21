@@ -29,6 +29,7 @@ import com.google.common.io.Resources;
 
 import me.lucko.scriptcontroller.bindings.BindingsSupplier;
 import me.lucko.scriptcontroller.environment.ScriptEnvironment;
+import me.lucko.scriptcontroller.environment.settings.EnvironmentSettings;
 import me.lucko.scriptcontroller.exports.ExportRegistry;
 
 import org.junit.Rule;
@@ -59,7 +60,10 @@ public class ControllerTest {
 
         ScriptController controller = ScriptController.builder()
                 .withDirectory(scripts.toPath())
-                .withBindings(BindingsSupplier.singleBinding("testCallback", (Runnable) () -> callback.set(true)))
+                .defaultEnvironmentSettings(EnvironmentSettings.builder()
+                        .withBindings(BindingsSupplier.singleBinding("testCallback", (Runnable) () -> callback.set(true)))
+                        .build()
+                )
                 .build();
 
         assertTrue(callback.get());
