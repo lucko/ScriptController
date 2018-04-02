@@ -289,6 +289,12 @@ class ScriptLoaderImpl implements SystemScriptLoader {
         // handle init of new scripts & cleanup of old ones
         Executor runExecutor = this.environment.getSettings().getRunExecutor();
         runExecutor.execute(() -> {
+            // terminate old scripts
+            CompositeAutoClosable.create()
+                    .bindAll(toTerminate)
+                    .closeAndReportExceptions();
+
+            // init new/reloaded scripts
             for (ScriptImpl script : toRun) {
                 try {
                     script.run();
@@ -296,10 +302,6 @@ class ScriptLoaderImpl implements SystemScriptLoader {
                     e.printStackTrace();
                 }
             }
-
-            CompositeAutoClosable.create()
-                    .bindAll(toTerminate)
-                    .closeAndReportExceptions();
         });
     }
 
