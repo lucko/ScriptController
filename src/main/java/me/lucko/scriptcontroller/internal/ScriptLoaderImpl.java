@@ -26,7 +26,7 @@
 package me.lucko.scriptcontroller.internal;
 
 import me.lucko.scriptcontroller.closable.CompositeAutoClosable;
-import me.lucko.scriptcontroller.environment.loader.SystemScriptLoader;
+import me.lucko.scriptcontroller.environment.loader.EnvironmentScriptLoader;
 import me.lucko.scriptcontroller.environment.registry.ScriptRegistry;
 import me.lucko.scriptcontroller.environment.script.Script;
 import me.lucko.scriptcontroller.logging.SystemLogger;
@@ -48,7 +48,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.ReentrantLock;
 
-class ScriptLoaderImpl implements SystemScriptLoader {
+class ScriptLoaderImpl implements EnvironmentScriptLoader {
     private static final WatchEvent.Kind<?>[] EVENTS = new WatchEvent.Kind[]{
             StandardWatchEventKinds.ENTRY_CREATE,
             StandardWatchEventKinds.ENTRY_DELETE,

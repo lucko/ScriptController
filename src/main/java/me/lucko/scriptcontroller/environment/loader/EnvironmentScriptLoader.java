@@ -26,9 +26,9 @@
 package me.lucko.scriptcontroller.environment.loader;
 
 /**
- * The global system script loader
+ * The environments script loader
  */
-public interface SystemScriptLoader extends ScriptLoader, Runnable {
+public interface EnvironmentScriptLoader extends ScriptLoader, Runnable {
 
     /**
      * Script loading loop

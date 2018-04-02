@@ -26,7 +26,7 @@
 package me.lucko.scriptcontroller.environment;
 
 import me.lucko.scriptcontroller.ScriptController;
-import me.lucko.scriptcontroller.environment.loader.SystemScriptLoader;
+import me.lucko.scriptcontroller.environment.loader.EnvironmentScriptLoader;
 import me.lucko.scriptcontroller.environment.registry.ScriptRegistry;
 import me.lucko.scriptcontroller.environment.settings.EnvironmentSettings;
 import me.lucko.scriptcontroller.exports.ExportRegistry;
@@ -69,7 +69,7 @@ public interface ScriptEnvironment extends AutoCloseable {
      *
      * @return the script loader
      */
-    SystemScriptLoader getLoader();
+    EnvironmentScriptLoader getLoader();
 
     /**
      * Gets the script registry, containing all loaded scripts within this

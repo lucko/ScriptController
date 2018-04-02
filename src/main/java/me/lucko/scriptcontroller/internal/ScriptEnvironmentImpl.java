@@ -26,7 +26,7 @@
 package me.lucko.scriptcontroller.internal;
 
 import me.lucko.scriptcontroller.environment.ScriptEnvironment;
-import me.lucko.scriptcontroller.environment.loader.SystemScriptLoader;
+import me.lucko.scriptcontroller.environment.loader.EnvironmentScriptLoader;
 import me.lucko.scriptcontroller.environment.registry.ScriptRegistry;
 import me.lucko.scriptcontroller.exports.ExportRegistry;
 
@@ -58,7 +58,7 @@ class ScriptEnvironmentImpl implements ScriptEnvironment {
     private final ScriptEngine scriptEngine;
 
     /** The script loader operating within this environment */
-    private final SystemScriptLoader loader;
+    private final EnvironmentScriptLoader loader;
 
     /** An autoclosable which represents the repeating load task */
     private final AutoCloseable loaderPollingTask;
@@ -100,7 +100,7 @@ class ScriptEnvironmentImpl implements ScriptEnvironment {
     }
 
     @Override
-    public SystemScriptLoader getLoader() {
+    public EnvironmentScriptLoader getLoader() {
         return this.loader;
     }
 
