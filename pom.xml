@@ -6,7 +6,7 @@
 
     <groupId>me.lucko</groupId>
     <artifactId>scriptcontroller</artifactId>
-    <version>1.0</version>
+    <version>1.0-SNAPSHOT</version>
 
     <name>ScriptController</name>
     <description>Extended API for Java's Scripting Engine framework</description>
@@ -42,6 +42,17 @@
         <skipTests>true</skipTests>
         <maven.test.skip>true</maven.test.skip>
     </properties>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>luck-snapshots</id>
+            <url>https://nexus.lucko.me/repository/maven-snapshots/</url>
+        </snapshotRepository>
+        <repository>
+            <id>luck-releases</id>
+            <url>https://nexus.lucko.me/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
 
     <dependencies>
         <dependency>

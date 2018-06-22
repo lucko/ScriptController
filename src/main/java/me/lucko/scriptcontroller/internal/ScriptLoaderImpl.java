@@ -32,6 +32,7 @@ import me.lucko.scriptcontroller.environment.script.Script;
 import me.lucko.scriptcontroller.logging.SystemLogger;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardWatchEventKinds;
@@ -41,12 +42,16 @@ import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 class ScriptLoaderImpl implements EnvironmentScriptLoader {
     private static final WatchEvent.Kind<?>[] EVENTS = new WatchEvent.Kind[]{
@@ -62,7 +67,7 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
     private final WatchService watchService;
 
     /** The watch key for the script directory */
-    private WatchKey watchKey;
+    private final List<WatchKey> watchKeys = new CopyOnWriteArrayList<>();
 
     /**
      * The script files currently being monitored by this instance.
@@ -76,9 +81,14 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
     public ScriptLoaderImpl(ScriptEnvironmentImpl environment) throws IOException {
         this.environment = environment;
 
-        Path directory = environment.getDirectory();
-        this.watchService = directory.getFileSystem().newWatchService();
-        this.watchKey = directory.register(this.watchService, EVENTS);
+        // init file watcher
+        this.watchService = environment.getDirectory().getFileSystem().newWatchService();
+        try (Stream<Path> dirs = Files.walk(environment.getDirectory())) {
+            List<Path> directories = dirs.filter(Files::isDirectory).collect(Collectors.toList());
+            for (Path dir : directories) {
+                this.watchKeys.add(dir.register(this.watchService, EVENTS));
+            }
+        }
     }
 
     @Override
@@ -116,7 +126,7 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
         int filesLength;
         do {
             filesLength = this.files.size();
-            run();
+            reload(true);
         } while (filesLength != this.files.size());
     }
 
@@ -124,7 +134,7 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
     public void run() {
         this.lock.lock();
         try {
-            reload();
+            reload(false);
         } catch (Throwable t) {
             t.printStackTrace();
         } finally {
@@ -132,8 +142,7 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
         }
     }
 
-    private void reload() {
-        Path directory = this.environment.getDirectory();
+    private void reload(boolean runImmediately) {
         ScriptRegistry registry = this.environment.getScriptRegistry();
         SystemLogger logger = this.environment.getController().getLogger();
 
@@ -142,96 +151,9 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
         Set<Path> toLoad = new LinkedHashSet<>();
         Set<Script> toUnload = new LinkedHashSet<>();
 
-        // handle scripts being watched
-        // effectively: ensure that for all files being watched, if the file exists
-        // it's loaded.
-        // additionally, ensure that watched scripts still exist, otherwise unload them.
-        for (Path path : this.files) {
-            Script script = registry.getScript(path);
-
-            if (directory.resolve(path).toFile().exists()) {
-                // if the path exists, make sure we have something loaded for it
-                if (script == null) {
-                    toLoad.add(path);
-                }
-            } else {
-                // path doesn't exist, so make sure the script isn't loaded.
-                if (script != null) {
-                    toUnload.add(script);
-                }
-            }
-        }
-
-        // unload scripts which are in the registry, but were unwatched since the last check
-        for (Map.Entry<Path, Script> script : registry.getAll().entrySet()) {
-            if (!this.files.contains(script.getKey())) {
-                toUnload.add(script.getValue());
-            }
-        }
-
-        // a set of paths which we're going to 'try' to unload.
-        // meaning, they'll only get unloaded if we also aren't (re)loading in this same cycle
-        Set<Path> tryUnload = new HashSet<>();
-
-        // poll the filesystem for changes
-        List<WatchEvent<?>> watchEvents = this.watchKey.pollEvents();
-        for (WatchEvent<?> event : watchEvents) {
-            Path context = (Path) event.context();
-            if (context == null) {
-                continue;
-            }
-
-            // already being loaded / unloaded
-            // soo, just ignore the change
-            if (toLoad.contains(context) || toUnload.stream().anyMatch(s -> s.getPath().equals(context))) {
-                continue;
-            }
-
-            // try delete
-            if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
-                tryUnload.add(context);
-                continue;
-            }
-
-            // otherwise, try (re)load
-            Script script = registry.getScript(context);
-            if (script == null) {
-                if (this.files.contains(context)) {
-                    toLoad.add(context);
-                } else {
-                    // add to the reload queue anyways - we want to resolve it's dependencies
-                    toReload.add(context);
-                }
-            } else {
-                toReload.add(script.getPath());
-            }
-        }
-
-        boolean valid = this.watchKey.reset();
-        if (!valid) {
-            new RuntimeException("WatchKey no longer valid: " + watchEvents.toString()).printStackTrace();
-            try {
-                this.watchKey = directory.register(this.watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        // process scripts which might need to be unloaded.
-        for (Path p : tryUnload) {
-            // only unload if the script exists
-            Script script = registry.getScript(p);
-            if (script == null) {
-                continue;
-            }
-
-            // only unload if the script isn't otherwise being loaded
-            if (toLoad.contains(p) || toReload.contains(p)) {
-                continue;
-            }
-
-            toUnload.add(script);
-        }
+        checkWatched(toLoad, toUnload);
+        checkRegistry(toUnload);
+        checkFilesystem(toLoad, toUnload, toReload);
 
         // handle reloading first
         // create a reload queue - by taking the paths to reload, and then
@@ -286,8 +208,12 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
             logger.info("[LOADER] Unloaded script: " + pathToString(s.getPath()));
         }
 
+        if (toTerminate.isEmpty() && toRun.isEmpty()) {
+            return;
+        }
+
         // handle init of new scripts & cleanup of old ones
-        Executor runExecutor = this.environment.getSettings().getRunExecutor();
+        Executor runExecutor = runImmediately ? Runnable::run : this.environment.getSettings().getRunExecutor();
         runExecutor.execute(() -> {
             // terminate old scripts
             CompositeAutoClosable.create()
@@ -303,6 +229,121 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
                 }
             }
         });
+    }
+
+    private void checkWatched(Set<Path> toLoad, Set<Script> toUnload) {
+        Path directory = this.environment.getDirectory();
+        ScriptRegistry registry = this.environment.getScriptRegistry();
+
+        // handle scripts being watched
+        // effectively: ensure that for all files being watched, if the file
+        // exists it's loaded. (this check covers new scripts being watched at runtime)
+        // additionally, ensure that watched scripts still exist, otherwise unload them.
+        for (Path path : this.files) {
+            Script script = registry.getScript(path);
+
+            if (Files.exists(directory.resolve(path))) {
+                // if the path exists, make sure we have something loaded for it
+                if (script == null) {
+                    toLoad.add(path);
+                }
+            } else {
+                // path doesn't exist (the script has been deleted?), so make sure the script isn't loaded.
+                if (script != null) {
+                    toUnload.add(script);
+                }
+            }
+        }
+    }
+
+    private void checkRegistry(Set<Script> toUnload) {
+        ScriptRegistry registry = this.environment.getScriptRegistry();
+
+        // unload scripts which are in the registry, but were unwatched since the last check
+        for (Map.Entry<Path, Script> script : registry.getAll().entrySet()) {
+            if (!this.files.contains(script.getKey())) {
+                toUnload.add(script.getValue());
+            }
+        }
+    }
+
+    private void checkFilesystem(Set<Path> toLoad, Set<Script> toUnload, Set<Path> toReload) {
+        Path directory = this.environment.getDirectory();
+        ScriptRegistry registry = this.environment.getScriptRegistry();
+        SystemLogger logger = this.environment.getController().getLogger();
+
+        // a set of paths which we're going to 'try' to unload.
+        // meaning, they'll only get unloaded if we also aren't (re)loading in this same cycle
+        Set<Path> tryUnload = new HashSet<>();
+
+        // poll the filesystem for changes
+        Iterator<WatchKey> keys = this.watchKeys.iterator();
+        while (keys.hasNext()) {
+            WatchKey key = keys.next();
+            for (WatchEvent<?> event : key.pollEvents()) {
+                Path context = (Path) event.context();
+                if (context == null) {
+                    continue;
+                }
+
+                Path keyPath = (Path) key.watchable();
+                Path fullPath = keyPath.resolve(context);
+                Path relativePath = directory.relativize(fullPath);
+
+                if (Files.isDirectory(fullPath) && !fullPath.getFileName().toString().equals("New folder")) {
+                    logger.info("[LOADER] New directory detected at: " + relativePath.toString());
+                }
+
+                // already being loaded / unloaded
+                // soo, just ignore the change
+                if (toLoad.contains(relativePath) || toUnload.stream().anyMatch(s -> s.getPath().equals(relativePath))) {
+                    continue;
+                }
+
+                // try delete
+                if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
+                    tryUnload.add(relativePath);
+                    continue;
+                }
+
+                // otherwise, try (re)load
+                Script script = registry.getScript(relativePath);
+                if (script == null) {
+                    if (this.files.contains(relativePath)) {
+                        toLoad.add(relativePath);
+                    } else {
+                        // add to the reload queue anyways - we want to resolve it's dependencies
+                        toReload.add(relativePath);
+                    }
+                } else {
+                    toReload.add(script.getPath());
+                }
+            }
+
+            // check if key is still valid
+            boolean valid = key.reset();
+            if (!valid) {
+                logger.warning("[LOADER] Watch key is no longer valid: " + key.watchable().toString());
+                keys.remove();
+            }
+        }
+
+        // process scripts which might need to be unloaded.
+        for (Path p : tryUnload) {
+            Script script = registry.getScript(p);
+
+            // only unload if the script exists
+            if (script == null) {
+                continue;
+            }
+
+            // only unload if the script isn't otherwise being loaded
+            if (toLoad.contains(p) || toReload.contains(p)) {
+                continue;
+            }
+
+            toUnload.add(script);
+        }
     }
 
     /**
@@ -325,7 +366,7 @@ class ScriptLoaderImpl implements EnvironmentScriptLoader {
 
     @Override
     public void close() throws IOException {
-        this.watchKey.cancel();
+        this.watchKeys.clear();
         this.watchService.close();
         this.files.clear();
     }
