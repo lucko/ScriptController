@@ -6,7 +6,7 @@
 
     <groupId>me.lucko</groupId>
     <artifactId>scriptcontroller</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1</version>
 
     <name>ScriptController</name>
     <description>Extended API for Java's Scripting Engine framework</description>
