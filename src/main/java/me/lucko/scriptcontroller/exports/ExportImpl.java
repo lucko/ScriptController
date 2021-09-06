@@ -25,8 +25,6 @@
 
 package me.lucko.scriptcontroller.exports;
 
-import jdk.nashorn.api.scripting.AbstractJSObject;
-
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -137,21 +135,11 @@ final class ExportImpl<T> implements Export<T> {
         }
     }
 
-    private static final class PointerImpl<T> extends AbstractJSObject implements Pointer<T> {
+    private static final class PointerImpl<T> implements Pointer<T> {
         private final Export<T> export;
 
         private PointerImpl(Export<T> export) {
             this.export = export;
-        }
-
-        @Override
-        public boolean isFunction() {
-            return true;
-        }
-
-        @Override
-        public Object call(Object thiz, Object... args) {
-            return get();
         }
 
         @Override

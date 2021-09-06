@@ -30,12 +30,11 @@ import me.lucko.scriptcontroller.environment.loader.EnvironmentScriptLoader;
 import me.lucko.scriptcontroller.environment.registry.ScriptRegistry;
 import me.lucko.scriptcontroller.exports.ExportRegistry;
 
-import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
-
 import java.io.IOException;
 import java.nio.file.Path;
 
 import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 
 class ScriptEnvironmentImpl implements ScriptEnvironment {
 
@@ -70,7 +69,7 @@ class ScriptEnvironmentImpl implements ScriptEnvironment {
 
         this.scriptRegistry = ScriptRegistry.create();
         this.exportRegistry = ExportRegistry.create();
-        this.scriptEngine = new NashornScriptEngineFactory().getScriptEngine(ScriptEnvironmentImpl.class.getClassLoader());
+        this.scriptEngine = new ScriptEngineManager(ScriptEnvironmentImpl.class.getClassLoader()).getEngineByName("nashorn");
         try {
             this.loader = new ScriptLoaderImpl(this);
         } catch (IOException e) {
